@@ -180,6 +180,7 @@ example_portfolio_*.csv
 # Data cache
 data_cache/
 cache/
+*.pkl
 
 # Temporary files
 temp/

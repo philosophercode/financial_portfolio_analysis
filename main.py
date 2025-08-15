@@ -177,6 +177,7 @@ def analyze_portfolio(
     if save_results:
         import os
         from datetime import datetime
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_dir = f"portfolio_analysis/portfolio_run_{timestamp}"
         os.makedirs(output_dir, exist_ok=True)
@@ -254,7 +255,9 @@ def analyze_portfolio(
         # Always save plots if save_results is True, even if some failed
         if save_results and figures:
             try:
-                output_dir, saved_plots = visualizer.save_all_plots(figures, output_dir=output_dir, prefix="portfolio_analysis")
+                output_dir, saved_plots = visualizer.save_all_plots(
+                    figures, output_dir=output_dir, prefix="portfolio_analysis"
+                )
                 print(f"💾 Saved {len(saved_plots)} plots to {output_dir}")
             except Exception as e:
                 print(f"❌ Error saving plots: {e}")

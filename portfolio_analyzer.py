@@ -38,6 +38,9 @@ class PortfolioAnalyzer:
 
         # Calculate returns
         self.returns = price_data.pct_change().dropna()
+        
+        # Update symbols list to match actual data columns
+        self.symbols = list(self.price_data.columns)
 
         # Initialize expected returns and covariance matrix
         self.expected_returns = None

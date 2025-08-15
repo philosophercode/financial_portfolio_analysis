@@ -9,6 +9,7 @@ import yfinance as yf
 from typing import List, Dict, Optional
 from datetime import datetime, timedelta
 import config
+from data_cache import DataCache, correct_symbol
 
 
 class DataFetcher:
@@ -16,15 +17,18 @@ class DataFetcher:
     A class to fetch financial data from multiple sources
     """
 
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: Optional[str] = None, use_cache: bool = True):
         """
         Initialize the DataFetcher
 
         Args:
             api_key: Alpha Vantage API key. If None, will use environment variable
+            use_cache: Whether to use data caching
         """
         self.api_key = api_key or config.ALPHA_VANTAGE_API_KEY
         self.base_url = config.ALPHA_VANTAGE_BASE_URL
+        self.use_cache = use_cache
+        self.cache = DataCache() if use_cache else None
 
     def get_stock_data_alpha_vantage(
         self, symbol: str, outputsize: str = "full"
@@ -104,11 +108,24 @@ class DataFetcher:
         try:
             if period is None:
                 period = config.DEFAULT_PERIOD
-            ticker = yf.Ticker(symbol)
+                
+            # Correct symbol formatting
+            corrected_symbol = correct_symbol(symbol)
+            if corrected_symbol != symbol:
+                print(f"🔧 Corrected symbol: {symbol} → {corrected_symbol}")
+            
+            # Check cache first
+            if self.use_cache and self.cache:
+                cached_data = self.cache.get_cached_data(corrected_symbol, period, "yahoo")
+                if cached_data is not None:
+                    return cached_data
+            
+            # Fetch from Yahoo Finance
+            ticker = yf.Ticker(corrected_symbol)
             df = ticker.history(period=period)
 
             if df.empty:
-                raise ValueError(f"No data found for symbol {symbol}")
+                raise ValueError(f"No data found for symbol {corrected_symbol}")
 
             # Standardize column names
             df.columns = df.columns.str.lower()
@@ -116,11 +133,15 @@ class DataFetcher:
                 df["adjusted_close"] = df["adj close"]
                 df = df.drop("adj close", axis=1)
 
+            # Cache the data
+            if self.use_cache and self.cache:
+                self.cache.cache_data(corrected_symbol, period, df, "yahoo")
+
             return df
 
         except Exception as e:
             raise RuntimeError(
-                f"Error fetching data from Yahoo Finance for {symbol}: {e}"
+                f"Error fetching data from Yahoo Finance for {corrected_symbol}: {e}"
             )
 
     def get_multiple_stocks(
@@ -208,6 +229,20 @@ class DataFetcher:
 
         except requests.exceptions.RequestException as e:
             raise ConnectionError(f"Failed to fetch company overview for {symbol}: {e}")
+
+
+    def get_cache_info(self) -> Dict:
+        """Get information about cached data"""
+        if self.cache:
+            return self.cache.get_cache_info()
+        return {"message": "Cache is disabled"}
+    
+    def clear_cache(self, symbol: str = None) -> None:
+        """Clear cached data"""
+        if self.cache:
+            self.cache.clear_cache(symbol)
+        else:
+            print("Cache is disabled")
 
 
 def validate_symbols(symbols: List[str]) -> List[str]:
