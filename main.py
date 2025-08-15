@@ -172,32 +172,61 @@ def analyze_portfolio(
         print(f"❌ Error calculating efficient frontier: {e}")
         ef_returns, ef_volatilities, ef_sharpe_ratios = [], [], []
 
+    # Initialize output directory early if saving results
+    output_dir = None
+    if save_results:
+        import os
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_dir = f"portfolio_analysis/portfolio_run_{timestamp}"
+        os.makedirs(output_dir, exist_ok=True)
+
     # Step 8: Visualization
     if show_plots:
         print("\n📊 Creating visualizations...")
 
-        try:
-            visualizer = PortfolioVisualizer()
-            figures = []
+        visualizer = PortfolioVisualizer()
+        figures = []
 
+        try:
             # Price history
             fig1 = visualizer.plot_price_history(price_data, symbols)
             figures.append(fig1)
+            print("✅ Created price history plot")
 
+        except Exception as e:
+            print(f"⚠️  Warning: Could not create price history plot: {e}")
+
+        try:
             # Correlation matrix
             fig2 = visualizer.plot_correlation_matrix(analyzer.returns)
             figures.append(fig2)
+            print("✅ Created correlation matrix plot")
 
+        except Exception as e:
+            print(f"⚠️  Warning: Could not create correlation matrix plot: {e}")
+
+        try:
             # Portfolio weights
             fig3 = visualizer.plot_portfolio_weights(cleaned_weights)
             figures.append(fig3)
+            print("✅ Created portfolio weights plot")
 
+        except Exception as e:
+            print(f"⚠️  Warning: Could not create portfolio weights plot: {e}")
+
+        try:
             # Risk-return scatter
             fig4 = visualizer.plot_risk_return_scatter(
                 symbols, analyzer.returns, cleaned_weights
             )
             figures.append(fig4)
+            print("✅ Created risk-return scatter plot")
 
+        except Exception as e:
+            print(f"⚠️  Warning: Could not create risk-return scatter plot: {e}")
+
+        try:
             # Efficient frontier (if calculated)
             if ef_returns:
                 optimal_point = (volatility, expected_return)
@@ -205,25 +234,36 @@ def analyze_portfolio(
                     ef_returns, ef_volatilities, ef_sharpe_ratios, optimal_point
                 )
                 figures.append(fig5)
+                print("✅ Created efficient frontier plot")
 
+        except Exception as e:
+            print(f"⚠️  Warning: Could not create efficient frontier plot: {e}")
+
+        try:
             # Portfolio performance (if backtest successful)
             if not backtest_results.empty:
                 fig6 = visualizer.plot_portfolio_performance(backtest_results)
                 figures.append(fig6)
-
-            print(f"✅ Created {len(figures)} visualizations")
-
-            if save_results:
-                output_dir, saved_plots = visualizer.save_all_plots(
-                    figures, prefix="portfolio_analysis"
-                )
-            else:
-                output_dir = None
-
-            plt.show()
+                print("✅ Created performance backtest plot")
 
         except Exception as e:
-            print(f"❌ Error in visualization: {e}")
+            print(f"⚠️  Warning: Could not create performance backtest plot: {e}")
+
+        print(f"📊 Created {len(figures)} visualizations successfully")
+
+        # Always save plots if save_results is True, even if some failed
+        if save_results and figures:
+            try:
+                output_dir, saved_plots = visualizer.save_all_plots(figures, output_dir=output_dir, prefix="portfolio_analysis")
+                print(f"💾 Saved {len(saved_plots)} plots to {output_dir}")
+            except Exception as e:
+                print(f"❌ Error saving plots: {e}")
+
+        # Show plots if requested
+        try:
+            plt.show()
+        except Exception as e:
+            print(f"⚠️  Warning: Could not display plots: {e}")
 
     # Step 9: Summary report
     print("\n📋 Generating summary report...")
@@ -269,7 +309,7 @@ def analyze_portfolio(
         print(f"\n💾 Saving results to CSV files...")
         try:
             # Create timestamped directory if not already created from plots
-            if "output_dir" not in locals() or output_dir is None:
+            if output_dir is None:
                 import os
                 from datetime import datetime
 
