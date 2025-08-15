@@ -7,6 +7,9 @@ import numpy as np
 from typing import List, Dict
 import matplotlib.pyplot as plt
 import warnings
+import argparse
+import os
+import sys
 
 warnings.filterwarnings("ignore")
 
@@ -24,6 +27,7 @@ def analyze_portfolio(
     data_source: str = "yahoo",
     show_plots: bool = True,
     save_results: bool = True,
+    original_weights: Dict[str, float] = None,
 ) -> Dict:
     """
     Comprehensive portfolio analysis workflow
@@ -172,6 +176,21 @@ def analyze_portfolio(
         print(f"❌ Error calculating efficient frontier: {e}")
         ef_returns, ef_volatilities, ef_sharpe_ratios = [], [], []
 
+    # Calculate original portfolio performance for efficient frontier plot
+    original_point = None
+    if original_weights:
+        try:
+            original_performance = analyzer.get_portfolio_performance(original_weights)
+            original_return, original_volatility, _ = original_performance
+            original_point = (original_volatility, original_return)
+            print(
+                f"📊 Original portfolio: {original_return:.2%} return, {original_volatility:.2%} volatility"
+            )
+        except Exception as e:
+            print(
+                f"⚠️  Warning: Could not calculate original portfolio performance: {e}"
+            )
+
     # Initialize output directory early if saving results
     output_dir = None
     if save_results:
@@ -207,14 +226,18 @@ def analyze_portfolio(
         except Exception as e:
             print(f"⚠️  Warning: Could not create correlation matrix plot: {e}")
 
-        try:
-            # Portfolio weights
-            fig3 = visualizer.plot_portfolio_weights(cleaned_weights)
-            figures.append(fig3)
-            print("✅ Created portfolio weights plot")
+        # Note: Removed redundant portfolio weights chart - we now use the comparison chart instead
 
+        try:
+            # Portfolio comparison (if we have original weights)
+            if original_weights:
+                fig3b = visualizer.plot_portfolio_comparison(
+                    original_weights, cleaned_weights
+                )
+                figures.append(fig3b)
+                print("✅ Created portfolio comparison plot")
         except Exception as e:
-            print(f"⚠️  Warning: Could not create portfolio weights plot: {e}")
+            print(f"⚠️  Warning: Could not create portfolio comparison plot: {e}")
 
         try:
             # Risk-return scatter
@@ -232,10 +255,16 @@ def analyze_portfolio(
             if ef_returns:
                 optimal_point = (volatility, expected_return)
                 fig5 = visualizer.plot_efficient_frontier(
-                    ef_returns, ef_volatilities, ef_sharpe_ratios, optimal_point
+                    ef_returns,
+                    ef_volatilities,
+                    ef_sharpe_ratios,
+                    optimal_point,
+                    original_point,
                 )
                 figures.append(fig5)
                 print("✅ Created efficient frontier plot")
+                if original_point:
+                    print("✅ Added original portfolio point to efficient frontier")
 
         except Exception as e:
             print(f"⚠️  Warning: Could not create efficient frontier plot: {e}")
@@ -440,24 +469,82 @@ def compare_optimization_methods(symbols: List[str]):
     return results_comparison
 
 
+def run_portfolio_from_file(
+    file_path: str, optimization_method: str = "max_sharpe"
+) -> Dict:
+    """
+    Run portfolio analysis from a CSV file.
+
+    Args:
+        file_path: Path to portfolio CSV file
+        optimization_method: Optimization method to use
+
+    Returns:
+        Analysis results dictionary
+    """
+    from portfolio_input import load_and_analyze_portfolio
+
+    if not os.path.exists(file_path):
+        print(f"❌ Portfolio file not found: {file_path}")
+        return {}
+
+    print(f"🚀 Running portfolio analysis on: {file_path}")
+    print(f"⚙️  Optimization method: {optimization_method}")
+    print("=" * 50)
+
+    return load_and_analyze_portfolio(
+        file_path=file_path,
+        optimization_method=optimization_method,
+        show_plots=True,
+        save_results=True,
+    )
+
+
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Financial Portfolio Analysis Tool",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "\nExamples:\n"
+            "  python main.py portfolio_csvs/portfolio_carlos.csv\n"
+            "  python main.py portfolio_csvs/portfolio_carlos.csv --method min_volatility\n"
+            "  python main.py --example\n"
+        ),
+    )
+
+    parser.add_argument(
+        "portfolio_file",
+        nargs="?",
+        help="Path to portfolio CSV file (e.g., portfolio_csvs/portfolio_carlos.csv)",
+    )
+
+    parser.add_argument(
+        "--method",
+        "-m",
+        default="max_sharpe",
+        choices=["max_sharpe", "min_volatility", "hrp", "cla"],
+        help="Portfolio optimization method (default: max_sharpe)",
+    )
+
+    parser.add_argument(
+        "--example",
+        "-e",
+        action="store_true",
+        help="Run example tech portfolio analysis instead",
+    )
+
+    args = parser.parse_args()
+
     print("🏦 Financial Portfolio Analysis Tool")
     print("=" * 50)
 
-    # You can choose which analysis to run:
-
-    # 1. Run example tech portfolio analysis
-    results = run_example_analysis()
-
-    # 2. Uncomment to run conservative portfolio analysis
-    # results = run_conservative_analysis()
-
-    # 3. Uncomment to compare optimization methods
-    # comparison = compare_optimization_methods(['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA'])
-
-    # 4. Custom analysis - modify symbols as needed
-    # custom_symbols = ['SPY', 'QQQ', 'IWM', 'EFA', 'EEM', 'TLT', 'GLD', 'VNQ']
-    # results = analyze_portfolio(custom_symbols, portfolio_value=25000)
+    if args.example or not args.portfolio_file:
+        if not args.portfolio_file:
+            print("No portfolio file specified. Running example analysis...")
+        print("🔬 Running example tech portfolio analysis")
+        results = run_example_analysis()
+    else:
+        results = run_portfolio_from_file(args.portfolio_file, args.method)
 
     print("\n🏁 Analysis complete! Check the generated files and plots.")
     print(

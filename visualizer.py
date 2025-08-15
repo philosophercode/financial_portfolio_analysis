@@ -111,6 +111,7 @@ class PortfolioVisualizer:
         volatilities: List[float],
         sharpe_ratios: List[float],
         optimal_portfolio: Tuple[float, float] = None,
+        original_portfolio: Tuple[float, float] = None,
         title: str = "Efficient Frontier",
     ) -> plt.Figure:
         """
@@ -121,6 +122,7 @@ class PortfolioVisualizer:
             volatilities: List of portfolio volatilities
             sharpe_ratios: List of Sharpe ratios
             optimal_portfolio: Tuple of (volatility, return) for optimal portfolio
+            original_portfolio: Tuple of (volatility, return) for original portfolio
             title: Chart title
 
         Returns:
@@ -157,6 +159,23 @@ class PortfolioVisualizer:
                 label="Optimal Portfolio",
                 zorder=5,
             )
+
+        # Highlight original portfolio if provided
+        if original_portfolio:
+            ax.scatter(
+                original_portfolio[0],
+                original_portfolio[1],
+                marker="o",
+                s=300,
+                c="orange",
+                edgecolors="black",
+                linewidth=2,
+                label="Original Portfolio",
+                zorder=4,
+            )
+
+        # Add legend if any portfolios are highlighted
+        if optimal_portfolio or original_portfolio:
             ax.legend()
 
         ax.set_title(title, fontsize=16, fontweight="bold")
@@ -277,6 +296,83 @@ class PortfolioVisualizer:
         ax2.set_xlabel("Date", fontsize=12)
         ax2.grid(True, alpha=0.3)
 
+        plt.tight_layout()
+        return fig
+
+    def plot_portfolio_comparison(
+        self,
+        original_weights: Dict[str, float],
+        optimized_weights: Dict[str, float],
+        title: str = "Portfolio Allocation: Original vs Optimized",
+    ) -> plt.Figure:
+        """
+        Plot side-by-side comparison of original and optimized portfolio weights
+
+        Args:
+            original_weights: Dictionary of original portfolio weights
+            optimized_weights: Dictionary of optimized portfolio weights
+            title: Chart title
+
+        Returns:
+            Matplotlib figure
+        """
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8), dpi=self.dpi)
+
+        # Original portfolio (left)
+        orig_symbols = list(original_weights.keys())
+        orig_values = list(original_weights.values())
+
+        wedges1, texts1, autotexts1 = ax1.pie(
+            orig_values,
+            labels=orig_symbols,
+            autopct="%1.1f%%",
+            startangle=90,
+            textprops={"fontsize": 8},
+        )
+
+        for autotext in autotexts1:
+            autotext.set_color("white")
+            autotext.set_fontweight("bold")
+            autotext.set_fontsize(8)
+
+        ax1.set_title("Original Portfolio\n(17 stocks)", fontsize=14, fontweight="bold")
+
+        # Optimized portfolio (right) - filter out zero weights
+        opt_non_zero = {k: v for k, v in optimized_weights.items() if abs(v) > 0.001}
+
+        if opt_non_zero:
+            opt_symbols = list(opt_non_zero.keys())
+            opt_values = list(opt_non_zero.values())
+
+            wedges2, texts2, autotexts2 = ax2.pie(
+                opt_values,
+                labels=opt_symbols,
+                autopct="%1.1f%%",
+                startangle=90,
+                textprops={"fontsize": 10},
+            )
+
+            for autotext in autotexts2:
+                autotext.set_color("white")
+                autotext.set_fontweight("bold")
+
+            ax2.set_title(
+                f"Optimized Portfolio\n({len(opt_non_zero)} stocks)",
+                fontsize=14,
+                fontweight="bold",
+            )
+        else:
+            ax2.text(
+                0.5,
+                0.5,
+                "No significant weights",
+                ha="center",
+                va="center",
+                fontsize=12,
+            )
+            ax2.set_title("Optimized Portfolio", fontsize=14, fontweight="bold")
+
+        plt.suptitle(title, fontsize=16, fontweight="bold")
         plt.tight_layout()
         return fig
 
@@ -560,7 +656,7 @@ class PortfolioVisualizer:
         plot_names = [
             "price_history",
             "correlation_matrix",
-            "portfolio_weights",
+            "portfolio_comparison",
             "risk_return_scatter",
             "efficient_frontier",
             "performance_backtest",

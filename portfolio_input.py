@@ -288,6 +288,7 @@ def load_and_analyze_portfolio(
         optimization_method=optimization_method,
         show_plots=show_plots,
         save_results=save_results,
+        original_weights=weights,
     )
 
     # Add original portfolio info to results

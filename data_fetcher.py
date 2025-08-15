@@ -108,18 +108,20 @@ class DataFetcher:
         try:
             if period is None:
                 period = config.DEFAULT_PERIOD
-                
+
             # Correct symbol formatting
             corrected_symbol = correct_symbol(symbol)
             if corrected_symbol != symbol:
                 print(f"🔧 Corrected symbol: {symbol} → {corrected_symbol}")
-            
+
             # Check cache first
             if self.use_cache and self.cache:
-                cached_data = self.cache.get_cached_data(corrected_symbol, period, "yahoo")
+                cached_data = self.cache.get_cached_data(
+                    corrected_symbol, period, "yahoo"
+                )
                 if cached_data is not None:
                     return cached_data
-            
+
             # Fetch from Yahoo Finance
             ticker = yf.Ticker(corrected_symbol)
             df = ticker.history(period=period)
@@ -230,13 +232,12 @@ class DataFetcher:
         except requests.exceptions.RequestException as e:
             raise ConnectionError(f"Failed to fetch company overview for {symbol}: {e}")
 
-
     def get_cache_info(self) -> Dict:
         """Get information about cached data"""
         if self.cache:
             return self.cache.get_cache_info()
         return {"message": "Cache is disabled"}
-    
+
     def clear_cache(self, symbol: str = None) -> None:
         """Clear cached data"""
         if self.cache:
