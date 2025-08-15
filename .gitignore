@@ -170,9 +170,12 @@ cython_debug/
 
 # Generated analysis results
 portfolio_analysis/
-*.csv
 *.png
 *.html
+
+# Portfolio input files (user-specific)
+my_portfolio.csv
+example_portfolio_*.csv
 
 # Data cache
 data_cache/
